@@ -1,0 +1,4 @@
+NewEnv/
+.venv/
+__pycache__/
+*.pyc
