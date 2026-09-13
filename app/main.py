@@ -1,5 +1,7 @@
-from fastapi import FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, status
+from sqlalchemy.orm import Session
 
+from .database import get_db
 from .schemas import Employee, EmployeeCreate
 from .services import (
     create_employee,
@@ -13,7 +15,7 @@ from .services import (
 app = FastAPI(
     title="Employee Management API",
     description="Backend API for managing employee records.",
-    version="1.0.0",
+    version="2.0.0",
 )
 
 
@@ -27,25 +29,32 @@ def health_check():
     response_model=Employee,
     status_code=status.HTTP_201_CREATED,
 )
-def create_new_employee(employee_data: EmployeeCreate):
+def create_new_employee(
+    employee_data: EmployeeCreate,
+    db: Session = Depends(get_db),
+):
+    try:
+        return create_employee(db, employee_data)
 
-    for employee in get_all_employees():
-        if employee.email == employee_data.email:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already exists.",
-            )
-
-    return create_employee(employee_data)
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        )
 
 
 @app.get("/employees", response_model=list[Employee])
-def list_employees():
-    return get_all_employees()
+def list_employees(
+    db: Session = Depends(get_db),
+):
+    return get_all_employees(db)
 
 
 @app.get("/employees/{employee_id}", response_model=Employee)
-def get_employee(employee_id: int):
+def get_employee(
+    employee_id: int,
+    db: Session = Depends(get_db),
+):
 
     if employee_id <= 0:
         raise HTTPException(
@@ -53,7 +62,7 @@ def get_employee(employee_id: int):
             detail="Employee ID must be greater than zero.",
         )
 
-    employee = get_employee_by_id(employee_id)
+    employee = get_employee_by_id(db, employee_id)
 
     if employee is None:
         raise HTTPException(
@@ -68,6 +77,7 @@ def get_employee(employee_id: int):
 def update_existing_employee(
     employee_id: int,
     employee_data: EmployeeCreate,
+    db: Session = Depends(get_db),
 ):
 
     if employee_id <= 0:
@@ -76,7 +86,18 @@ def update_existing_employee(
             detail="Employee ID must be greater than zero.",
         )
 
-    employee = get_employee_by_id(employee_id)
+    try:
+        employee = update_employee(
+            db,
+            employee_id,
+            employee_data,
+        )
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        )
 
     if employee is None:
         raise HTTPException(
@@ -84,21 +105,14 @@ def update_existing_employee(
             detail="Employee not found.",
         )
 
-    for existing_employee in get_all_employees():
-        if (
-            existing_employee.email == employee_data.email
-            and existing_employee.id != employee_id
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already exists.",
-            )
-
-    return update_employee(employee_id, employee_data)
+    return employee
 
 
 @app.delete("/employees/{employee_id}")
-def delete_existing_employee(employee_id: int):
+def delete_existing_employee(
+    employee_id: int,
+    db: Session = Depends(get_db),
+):
 
     if employee_id <= 0:
         raise HTTPException(
@@ -106,7 +120,7 @@ def delete_existing_employee(employee_id: int):
             detail="Employee ID must be greater than zero.",
         )
 
-    deleted = delete_employee(employee_id)
+    deleted = delete_employee(db, employee_id)
 
     if not deleted:
         raise HTTPException(
