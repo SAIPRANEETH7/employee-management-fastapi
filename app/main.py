@@ -21,7 +21,7 @@ app = FastAPI(
 
 @app.get("/health")
 def health_check():
-    return {"status": "Application is running"}
+    return {"status": "Application is running successfully."}
 
 
 @app.post(
