@@ -10,4 +10,6 @@ SELECT * FROM employees WHERE department = 'Sales';
 
 select * from employees where salary > 50000;
 
+select * from employees where primary_skill LIKE '%Java%';
+
 show databases;
