@@ -1,55 +1,63 @@
 # Employee Management API
 
-A RESTful backend application for managing employee records using **FastAPI, Pydantic, SQLAlchemy, and MySQL**.
+A RESTful Employee Management Backend API built using FastAPI, Pydantic, SQLAlchemy, and MySQL.
 
-This project was developed as part of a backend development assignment. In Task 1, employee records were stored temporarily in a Python list. In Task 2, the application was upgraded to use MySQL database storage through SQLAlchemy so that employee records persist even after the application is restarted.
+This project was developed in two stages:
+
+- Task 1: Employee data stored temporarily in a Python list.
+- Task 2: Employee data migrated to MySQL using SQLAlchemy ORM for permanent data persistence.
+
+The API provides complete CRUD operations for managing employee records.
 
 ---
 
-## Features
+# Features
 
-- Create employee records
+- Create a new employee
 - Retrieve all employees
 - Retrieve an employee by ID
-- Update employee records
-- Delete employee records
+- Update an existing employee
+- Delete an employee
+- Health check endpoint
+- Automatic employee ID generation
 - MySQL database persistence
 - SQLAlchemy ORM
-- Automatic employee ID generation
-- Automatic `created_at` timestamp
-- `is_active` defaults to `true`
+- Pydantic request validation
 - Email format validation
-- Case-insensitive email uniqueness
-- Duplicate email requests are rejected
-- Database-level unique constraint on email
-- Rejects empty and whitespace-only required fields
-- `WFH` and `WFO` work mode validation
+- Case-insensitive email handling
+- Database-level unique email constraint
+- Work mode validation
+- Required field validation
+- Empty and whitespace-only field validation
 - Proper HTTP status codes
-- Clear validation and error responses
-- Database transaction rollback on failures
-- Database session cleanup
+- Database transaction rollback
+- Database failure handling
 - Automatic `employees` table creation
-- Interactive Swagger API documentation
+- Environment variable based database configuration
+- Swagger UI for API testing
 
 ---
 
-## Technology Stack
+# Technology Stack
 
-- Python
-- FastAPI
-- Pydantic
-- MySQL
-- SQLAlchemy
-- PyMySQL
-- python-dotenv
-- Uvicorn
-- Swagger UI
-- Git
-- GitHub
+| Technology | Purpose |
+|---|---|
+| Python 3.12 | Programming language |
+| FastAPI | Web framework |
+| Pydantic | Data validation |
+| SQLAlchemy | ORM and database operations |
+| MySQL | Relational database |
+| PyMySQL | MySQL database driver |
+| Uvicorn | ASGI server |
+| python-dotenv | Environment variable management |
+| Swagger UI | API documentation and testing |
+| Git | Version control |
+| GitHub | Source code repository |
+| VS Code | Development environment |
 
 ---
 
-## Project Structure
+# Project Structure
 
 ```text
 employee-management-fastapi/
@@ -62,9 +70,23 @@ employee-management-fastapi/
 │   ├── schemas.py
 │   └── services.py
 │
+├── Screenshots/
+│   ├── POST-create.png
+│   ├── GET-all.png
+│   ├── GET-by-id.png
+│   ├── PUT-update.png
+│   ├── DELETE.png
+│   ├── duplicate-email.png
+│   ├── employee-not-found.png
+│   ├── invalid-id.png
+│   ├── invalid-work-mode.png
+│   ├── persistence-before-restart.png
+│   ├── persistence-after-restart.png
+│   ├── mysql-table.png
+│   └── database-error.png
+│
 ├── .env
 ├── .env.example
 ├── .gitignore
 ├── requirements.txt
 └── README.md
-
