@@ -1,7 +1,7 @@
 from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy.orm import Session
 
-from .database import get_db
+from .database import create_tables, get_db
 from .schemas import Employee, EmployeeCreate
 from .services import (
     create_employee,
@@ -19,9 +19,14 @@ app = FastAPI(
 )
 
 
+@app.on_event("startup")
+def startup():
+    create_tables()
+
+
 @app.get("/health")
 def health_check():
-    return {"status": "Application is running."}
+    return {"status": "Application is running"}
 
 
 @app.post(
@@ -42,12 +47,25 @@ def create_new_employee(
             detail=str(error),
         )
 
+    except RuntimeError as error:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(error),
+        )
+
 
 @app.get("/employees", response_model=list[Employee])
 def list_employees(
     db: Session = Depends(get_db),
 ):
-    return get_all_employees(db)
+    try:
+        return get_all_employees(db)
+
+    except RuntimeError as error:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(error),
+        )
 
 
 @app.get("/employees/{employee_id}", response_model=Employee)
@@ -62,7 +80,14 @@ def get_employee(
             detail="Employee ID must be greater than zero.",
         )
 
-    employee = get_employee_by_id(db, employee_id)
+    try:
+        employee = get_employee_by_id(db, employee_id)
+
+    except RuntimeError as error:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(error),
+        )
 
     if employee is None:
         raise HTTPException(
@@ -99,6 +124,12 @@ def update_existing_employee(
             detail=str(error),
         )
 
+    except RuntimeError as error:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(error),
+        )
+
     if employee is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -120,7 +151,14 @@ def delete_existing_employee(
             detail="Employee ID must be greater than zero.",
         )
 
-    deleted = delete_employee(db, employee_id)
+    try:
+        deleted = delete_employee(db, employee_id)
+
+    except RuntimeError as error:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(error),
+        )
 
     if not deleted:
         raise HTTPException(

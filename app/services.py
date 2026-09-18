@@ -1,5 +1,5 @@
 from sqlalchemy import func, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from .models import Employee
@@ -38,16 +38,25 @@ def create_employee(
         db.rollback()
         raise ValueError("Email already exists.")
 
+    except SQLAlchemyError:
+        db.rollback()
+        raise RuntimeError("Database operation failed.")
+
     return employee
 
 
 def get_all_employees(db: Session) -> list[Employee]:
 
-    result = db.scalars(
-        select(Employee).order_by(Employee.id)
-    )
+    try:
+        result = db.scalars(
+            select(Employee).order_by(Employee.id)
+        )
 
-    return result.all()
+        return result.all()
+
+    except SQLAlchemyError:
+        db.rollback()
+        raise RuntimeError("Database operation failed.")
 
 
 def get_employee_by_id(
@@ -55,7 +64,12 @@ def get_employee_by_id(
     employee_id: int
 ) -> Employee | None:
 
-    return db.get(Employee, employee_id)
+    try:
+        return db.get(Employee, employee_id)
+
+    except SQLAlchemyError:
+        db.rollback()
+        raise RuntimeError("Database operation failed.")
 
 
 def update_employee(
@@ -64,38 +78,46 @@ def update_employee(
     employee_data
 ) -> Employee | None:
 
-    employee = get_employee_by_id(db, employee_id)
-
-    if employee is None:
-        return None
-
-    existing_employee = db.scalar(
-        select(Employee).where(
-            func.lower(Employee.email) == employee_data.email.lower(),
-            Employee.id != employee_id
-        )
-    )
-
-    if existing_employee is not None:
-        raise ValueError("Email already exists.")
-
-    employee.name = employee_data.name
-    employee.email = employee_data.email
-    employee.department = employee_data.department
-    employee.primary_skill = employee_data.primary_skill
-    employee.location = employee_data.location
-    employee.work_mode = employee_data.work_mode.value
-    employee.is_active = employee_data.is_active
-
     try:
+        employee = get_employee_by_id(db, employee_id)
+
+        if employee is None:
+            return None
+
+        existing_employee = db.scalar(
+            select(Employee).where(
+                func.lower(Employee.email) == employee_data.email.lower(),
+                Employee.id != employee_id
+            )
+        )
+
+        if existing_employee is not None:
+            raise ValueError("Email already exists.")
+
+        employee.name = employee_data.name
+        employee.email = employee_data.email
+        employee.department = employee_data.department
+        employee.primary_skill = employee_data.primary_skill
+        employee.location = employee_data.location
+        employee.work_mode = employee_data.work_mode.value
+        employee.is_active = employee_data.is_active
+
         db.commit()
         db.refresh(employee)
+
+        return employee
+
+    except ValueError:
+        db.rollback()
+        raise
 
     except IntegrityError:
         db.rollback()
         raise ValueError("Email already exists.")
 
-    return employee
+    except SQLAlchemyError:
+        db.rollback()
+        raise RuntimeError("Database operation failed.")
 
 
 def delete_employee(
@@ -103,17 +125,17 @@ def delete_employee(
     employee_id: int
 ) -> bool:
 
-    employee = get_employee_by_id(db, employee_id)
-
-    if employee is None:
-        return False
-
     try:
+        employee = db.get(Employee, employee_id)
+
+        if employee is None:
+            return False
+
         db.delete(employee)
         db.commit()
 
-    except Exception:
-        db.rollback()
-        raise
+        return True
 
-    return True
+    except SQLAlchemyError:
+        db.rollback()
+        raise RuntimeError("Database operation failed.")
