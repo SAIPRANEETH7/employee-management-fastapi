@@ -3,4 +3,5 @@ NewEnv/
 __pycache__/
 *.pyc
 .env
+.env.example
 Local Instance MySQL80.session.sql
