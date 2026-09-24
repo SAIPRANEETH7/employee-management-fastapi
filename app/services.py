@@ -45,14 +45,54 @@ def create_employee(
     return employee
 
 
-def get_all_employees(db: Session) -> list[Employee]:
-
+def get_all_employees(
+    db: Session,
+    search: str | None = None,
+    department: str | None = None,
+    work_mode: str | None = None,
+    is_active: bool | None = None,
+    limit: int = 10,
+    offset: int = 0,
+):
     try:
-        result = db.scalars(
-            select(Employee).order_by(Employee.id)
+        query = select(Employee)
+
+        if search:
+            query = query.where(
+                Employee.name.ilike(f"%{search}%")
+            )
+
+        if department:
+            query = query.where(
+                Employee.department == department
+            )
+
+        if work_mode:
+            query = query.where(
+                Employee.work_mode == work_mode
+            )
+
+        if is_active is not None:
+            query = query.where(
+                Employee.is_active == is_active
+            )
+
+        total = db.scalar(
+            select(func.count()).select_from(
+                query.subquery()
+            )
         )
 
-        return result.all()
+        query = (
+            query
+            .order_by(Employee.id.asc())
+            .offset(offset)
+            .limit(limit)
+        )
+
+        result = db.scalars(query)
+
+        return total, result.all()
 
     except SQLAlchemyError:
         db.rollback()

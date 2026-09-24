@@ -44,3 +44,9 @@ class Employee(EmployeeCreate):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+    
+class EmployeeListResponse(BaseModel):
+    total: int
+    limit: int
+    offset: int
+    items: list[Employee]
