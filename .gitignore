@@ -5,4 +5,4 @@ __pycache__/
 .env
 Local Instance MySQL80.session.sql
 .env.example
-.vscode
+.vscode/settings.json
