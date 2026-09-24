@@ -34,10 +34,10 @@ def health_check():
     response_model=EmployeeListResponse,
 )
 def list_employees(
-    search: str | None = Query(
-        default=None,
-        description="Search employees by name. Partial and case-insensitive.",
-    ),
+        search: str | None = Query(
+            default=None,
+            description="Search employees by name. Partial and case-insensitive.",
+        ),
     department: str | None = Query(
         default=None,
         description="Filter employees by department.",
