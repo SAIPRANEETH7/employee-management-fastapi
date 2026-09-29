@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="705" viewBox="0 0 1200 705">
+<rect width="100%" height="100%" fill="#f3f6fb"/>
+<rect x="28" y="24" width="1144" height="657" rx="16" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="56" y="68" font-family="Segoe UI,Arial" font-size="27" font-weight="700" fill="#172554">Employee Management API · Task 4</text>
+<rect x="56" y="91" width="1088" height="48" rx="8" fill="#0f172a"/><text x="74" y="122" font-family="Consolas,monospace" font-size="18" fill="#e2e8f0">POST /work-items</text>
+<text x="56" y="177" font-family="Segoe UI,Arial" font-size="16" font-weight="700" fill="#475569">REQUEST BODY</text>
+<text x="64" y="205" font-family="Consolas,monospace" font-size="15" fill="#334155">{&quot;title&quot;: &quot;Task 4 screenshot evidence item&quot;, &quot;description&quot;: &quot;Evidence for request and response examples&quot;,</text>
+<text x="64" y="226" font-family="Consolas,monospace" font-size="15" fill="#334155">  &quot;employee_id&quot;: 2, &quot;status&quot;: &quot;TODO&quot;, &quot;priority&quot;: &quot;MEDIUM&quot;, &quot;due_date&quot;: &quot;2026-10-15&quot;}</text>
+<rect x="56" y="260" width="1088" height="47" rx="8" fill="#f8fafc" stroke="#cbd5e1"/>
+<text x="74" y="290" font-family="Segoe UI,Arial" font-size="19" font-weight="700" fill="#15803d">HTTP 201</text>
+<text x="56" y="340" font-family="Segoe UI,Arial" font-size="16" font-weight="700" fill="#475569">ACTUAL RESPONSE BODY</text>
+<text x="64" y="368" font-family="Consolas,monospace" font-size="15" fill="#334155">{</text>
+<text x="64" y="389" font-family="Consolas,monospace" font-size="15" fill="#334155">  &quot;id&quot;: 12,</text>
+<text x="64" y="410" font-family="Consolas,monospace" font-size="15" fill="#334155">  &quot;title&quot;: &quot;Task 4 screenshot evidence item&quot;,</text>
+<text x="64" y="431" font-family="Consolas,monospace" font-size="15" fill="#334155">  &quot;description&quot;: &quot;Evidence for request and response examples&quot;,</text>
+<text x="64" y="452" font-family="Consolas,monospace" font-size="15" fill="#334155">  &quot;employee_id&quot;: 2,</text>
+<text x="64" y="473" font-family="Consolas,monospace" font-size="15" fill="#334155">  &quot;status&quot;: &quot;TODO&quot;,</text>
+<text x="64" y="494" font-family="Consolas,monospace" font-size="15" fill="#334155">  &quot;priority&quot;: &quot;MEDIUM&quot;,</text>
+<text x="64" y="515" font-family="Consolas,monospace" font-size="15" fill="#334155">  &quot;due_date&quot;: &quot;2026-10-15&quot;,</text>
+<text x="64" y="536" font-family="Consolas,monospace" font-size="15" fill="#334155">  &quot;created_at&quot;: &quot;2026-09-29T05:35:33&quot;,</text>
+<text x="64" y="557" font-family="Consolas,monospace" font-size="15" fill="#334155">  &quot;assigned_employee&quot;: {</text>
+<text x="64" y="578" font-family="Consolas,monospace" font-size="15" fill="#334155">    &quot;id&quot;: 2,</text>
+<text x="64" y="599" font-family="Consolas,monospace" font-size="15" fill="#334155">    &quot;name&quot;: &quot;Praneeth&quot;,</text>
+<text x="64" y="620" font-family="Consolas,monospace" font-size="15" fill="#334155">    &quot;email&quot;: &quot;praneeth1@example.com&quot;</text>
+<text x="64" y="641" font-family="Consolas,monospace" font-size="15" fill="#334155">  }</text>
+<text x="64" y="662" font-family="Consolas,monospace" font-size="15" fill="#334155">}</text>
+</svg>

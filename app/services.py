@@ -1,8 +1,8 @@
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
-from .models import Employee
+from .models import Employee, WorkItem
 
 
 def create_employee(
@@ -176,6 +176,111 @@ def delete_employee(
 
         return True
 
+    except SQLAlchemyError:
+        db.rollback()
+        raise RuntimeError("Database operation failed.")
+
+
+def _ensure_employee(db: Session, employee_id: int) -> None:
+    if db.get(Employee, employee_id) is None:
+        raise LookupError(f"Employee {employee_id} not found.")
+
+
+def create_work_item(db: Session, data) -> WorkItem:
+    try:
+        _ensure_employee(db, data.employee_id)
+        item = WorkItem(
+            title=data.title,
+            description=data.description,
+            employee_id=data.employee_id,
+            status=data.status.value,
+            priority=data.priority.value,
+            due_date=data.due_date,
+        )
+        db.add(item)
+        db.commit()
+        return get_work_item_by_id(db, item.id)
+    except LookupError:
+        db.rollback()
+        raise
+    except SQLAlchemyError:
+        db.rollback()
+        raise RuntimeError("Database operation failed.")
+
+
+def get_work_item_by_id(db: Session, work_item_id: int) -> WorkItem | None:
+    try:
+        return db.scalar(
+            select(WorkItem)
+            .options(selectinload(WorkItem.assigned_employee))
+            .where(WorkItem.id == work_item_id)
+        )
+    except SQLAlchemyError:
+        db.rollback()
+        raise RuntimeError("Database operation failed.")
+
+
+def get_all_work_items(
+    db: Session,
+    search: str | None = None,
+    employee_id: int | None = None,
+    status: str | None = None,
+    priority: str | None = None,
+    limit: int = 10,
+    offset: int = 0,
+):
+    try:
+        query = select(WorkItem)
+        if search:
+            query = query.where(WorkItem.title.ilike(f"%{search}%"))
+        if employee_id is not None:
+            query = query.where(WorkItem.employee_id == employee_id)
+        if status is not None:
+            query = query.where(WorkItem.status == status)
+        if priority is not None:
+            query = query.where(WorkItem.priority == priority)
+
+        total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
+        page_query = (
+            query.options(selectinload(WorkItem.assigned_employee))
+            .order_by(WorkItem.id.asc())
+            .offset(offset)
+            .limit(limit)
+        )
+        return total, db.scalars(page_query).all()
+    except SQLAlchemyError:
+        db.rollback()
+        raise RuntimeError("Database operation failed.")
+
+
+def update_work_item(db: Session, work_item_id: int, data) -> WorkItem | None:
+    try:
+        item = db.get(WorkItem, work_item_id)
+        if item is None:
+            return None
+        changes = data.model_dump(exclude_unset=True)
+        if "employee_id" in changes:
+            _ensure_employee(db, changes["employee_id"])
+        for key, value in changes.items():
+            setattr(item, key, value.value if hasattr(value, "value") else value)
+        db.commit()
+        return get_work_item_by_id(db, work_item_id)
+    except LookupError:
+        db.rollback()
+        raise
+    except SQLAlchemyError:
+        db.rollback()
+        raise RuntimeError("Database operation failed.")
+
+
+def delete_work_item(db: Session, work_item_id: int) -> bool:
+    try:
+        item = db.get(WorkItem, work_item_id)
+        if item is None:
+            return False
+        db.delete(item)
+        db.commit()
+        return True
     except SQLAlchemyError:
         db.rollback()
         raise RuntimeError("Database operation failed.")
