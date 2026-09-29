@@ -2,11 +2,12 @@
 
 A RESTful Employee Management Backend API built with FastAPI, Pydantic, SQLAlchemy, MySQL, and PyMySQL.
 
-The project was developed in three stages:
+The project has been extended through four stages:
 
 - **Task 1:** Employee records were stored temporarily in a Python list.
 - **Task 2:** Employee records were migrated to MySQL using SQLAlchemy ORM with persistent CRUD operations.
 - **Task 3:** The employee list endpoint was extended with SQLAlchemy-based search, filtering, sorting, and pagination.
+- **Task 4:** Work items were added with employee foreign-key assignments, relationships, CRUD endpoints, and filtered pagination.
 
 ## Features
 
@@ -368,17 +369,33 @@ Fictional employee records were used to test different departments, work modes, 
 
 Examples include Engineering, Backend, Product, Cybersecurity, QA, Finance, DevOps, Human Resources, and Data Science employees, with both WFH and WFO records and both active and inactive records.
 
-## Swagger Evidence
+## API Test Evidence
 
-The final submission should include actual Swagger screenshots for:
+`Screenshots/` retains the Task 1–3 evidence and includes six Task 4 request/response evidence images generated from actual local HTTP exchanges. Each image shows the request, actual status, and response body. Observed results: create existing employee `201`; nonexistent employee `404`; get/search/filter/combined filters/pagination `200`; invalid status, invalid priority, and blank title `422`; missing item `404`; reassignment `200`; deletion `204`; existing employee CRUD/list and health endpoints `200`. The list was queried again after stopping and restarting Uvicorn; work-item rows remained available.
 
-- Task 3 search response
-- Combined filters response
-- Pagination response using `limit` and `offset`
-- No matching results
-- Invalid query parameter input
+### Create a work item
 
-Existing Task 2 evidence should also be retained for CRUD, validation, duplicate email, not-found, database persistence, and MySQL records.
+![POST /work-items, actual 201 response with assigned employee](Screenshots/Task4-Create-201.svg)
+
+### Combined filters
+
+![GET /work-items with combined filters and actual response](Screenshots/Task4-Combined-Filters-200.svg)
+
+### Blank title validation
+
+![POST /work-items with whitespace title, actual 422 response](Screenshots/Task4-Blank-Title-422.svg)
+
+### Assignment to a nonexistent employee
+
+![POST /work-items with nonexistent employee, actual 404 response](Screenshots/Task4-Employee-Not-Found-404.svg)
+
+### Reassign and update
+
+![PUT /work-items with reassignment, actual 200 response](Screenshots/Task4-Reassign-Update-200.svg)
+
+### Delete
+
+![DELETE /work-items, actual 204 response with empty body](Screenshots/Task4-Delete-204.svg)
 
 ## What I Learned
 
@@ -439,14 +456,144 @@ GitHub repository:
 
 https://github.com/SAIPRANEETH7/employee-management-fastapi
 
+## Task 4 - Work Items and Employee Relationship
+
+Task 4 adds persistent work items assigned to existing employees. The `work_items.employee_id` column is a foreign key to `employees.id`, and the SQLAlchemy `Employee.work_items` / `WorkItem.assigned_employee` relationships expose the connection in both directions. An employee must exist before a work item can be created or reassigned. Work-item list filtering, counting, ordering, and pagination are performed in SQLAlchemy queries.
+
+### Work item table
+
+| Column | Description |
+|---|---|
+| `id` | Auto-increment primary key |
+| `title` | Required, trimmed, non-blank title (up to 200 characters) |
+| `description` | Optional text |
+| `employee_id` | Required foreign key to `employees.id` |
+| `status` | `TODO`, `IN_PROGRESS`, or `COMPLETED`; defaults to `TODO` |
+| `priority` | `LOW`, `MEDIUM`, or `HIGH`; defaults to `MEDIUM` |
+| `due_date` | Optional date (`YYYY-MM-DD`) |
+| `created_at` | Automatically generated timestamp |
+
+`create_all()` creates the new table when the application starts. It does not alter existing tables; this task adds a new table only.
+
+### Work item endpoints
+
+| Method | Endpoint | Success |
+|---|---|---|
+| POST | `/work-items` | `201 Created` |
+| GET | `/work-items` | `200 OK`, paginated list |
+| GET | `/work-items/{work_item_id}` | `200 OK` |
+| PUT | `/work-items/{work_item_id}` | `200 OK`; accepts the fields to change |
+| DELETE | `/work-items/{work_item_id}` | `204 No Content` |
+
+Every item response includes its assigned employee's `id`, `name`, and `email` in `assigned_employee`.
+
+Create example:
+
+```http
+POST /work-items
+Content-Type: application/json
+```
+
+```json
+{
+  "title": "Prepare weekly status report",
+  "description": "Summarize project progress",
+  "employee_id": 2,
+  "status": "TODO",
+  "priority": "MEDIUM",
+  "due_date": "2026-10-15"
+}
+```
+
+List query parameters:
+
+| Parameter | Behavior |
+|---|---|
+| `search` | Partial, case-insensitive match on title |
+| `employee_id` | Assigned employee ID; must be positive |
+| `status` | `TODO`, `IN_PROGRESS`, or `COMPLETED` |
+| `priority` | `LOW`, `MEDIUM`, or `HIGH` |
+| `limit` | Defaults to 10; range 1–100 |
+| `offset` | Defaults to 0; must be 0 or greater |
+
+Example combined filter and page:
+
+```text
+GET /work-items?search=weekly&employee_id=2&status=TODO&priority=MEDIUM&limit=10&offset=0
+```
+
+List responses use this shape; `total` counts all matches before pagination, and items are ordered by ascending ID:
+
+```json
+{
+  "total": 1,
+  "limit": 10,
+  "offset": 0,
+  "items": [
+    {
+      "id": 1,
+      "title": "Prepare weekly status report",
+      "description": "Summarize project progress",
+      "employee_id": 2,
+      "status": "TODO",
+      "priority": "MEDIUM",
+      "due_date": "2026-10-15",
+      "created_at": "2026-09-29T12:00:00",
+      "assigned_employee": {
+        "id": 2,
+        "name": "Employee Name",
+        "email": "employee@example.com"
+      }
+    }
+  ]
+}
+```
+
+Update example (fields are optional, so this can also reassign an item):
+
+```http
+PUT /work-items/1
+Content-Type: application/json
+```
+
+```json
+{"employee_id": 3, "status": "IN_PROGRESS", "priority": "HIGH"}
+```
+
+### Validation and error cases
+
+- Unknown employee on create or reassignment: `404 Not Found`.
+- Missing work-item ID: `404 Not Found`.
+- Invalid status or priority, blank title, non-positive employee ID, invalid date, or invalid pagination values: `422 Unprocessable Entity`.
+- Deleting an item succeeds with an empty `204` response.
+- Invalid or duplicate employee data continues to use the existing employee endpoint behavior.
+- The foreign key uses `ON DELETE RESTRICT`; an employee with work items cannot be removed at the database level until those items are removed.
+
+### Task 4 verification and screenshots
+
+The Task 4 test pass should cover creation for a real employee, nonexistent employee, retrieval by ID, case-insensitive partial search, individual and combined filters, pagination, reassignment/update, invalid status/priority/title, missing IDs, deletion, application restart persistence, and employee API regression checks. Capture Swagger UI screenshots showing the request, HTTP status, and response body for representative success and validation/error cases in `Screenshots/`.
+
+### What I learned and difficulties
+
+This task demonstrates a one-to-many relationship: an employee can own multiple work items, and each work item points to one employee through a database-enforced foreign key. SQLAlchemy relationships allow response serialization to include basic employee details without duplicating employee columns in the work-item table. The main implementation challenge is preserving referential integrity while allowing assignments and performing combined filters/counting/pagination in database queries.
+
+The main Task 4 learning was how a foreign key and ORM relationship connect independently stored records while supporting nested response details. A challenge was building a combined list query whose count is computed before pagination and whose related employee is loaded efficiently. Validation also needs to reject null updates for required database fields while still allowing optional descriptions and due dates to be cleared.
+
+### Assumptions
+
+- Existing MySQL connection settings and employee table are reused.
+- Status and priority values are uppercase enum strings.
+- PUT applies only supplied fields, allowing focused edits and reassignment.
+- Deleting an employee that still has work items is restricted by the foreign key.
+
 ## Version
 
 ```text
-Task 3
+Task 4
 Employee Management API
-Version 3.0.0
+Version 4.0.0
 ```
 
 ## Summary
 
-Task 3 extends the Employee Management API with database-backed search, filtering, and pagination while preserving the existing CRUD functionality from Task 2. The API now supports partial and case-insensitive name search, department filtering, WFH/WFO filtering, active-status filtering, combined filters, deterministic ID ordering, and limit/offset pagination using SQLAlchemy queries.
+Task 4 extends the Employee Management API with employee-assigned work items, a foreign key and SQLAlchemy relationship, validation, CRUD endpoints, and database-side search, filtering, ordering, counting, and pagination. Existing employee endpoints remain available.
