@@ -4,6 +4,7 @@ pydantic==2.13.5
 email-validator==2.3.0
 SQLAlchemy==2.0.52
 PyMySQL==1.2.0
+mysql-connector-python==8.1.0
 python-dotenv==1.2.3
 uvicorn==0.52.4
 
