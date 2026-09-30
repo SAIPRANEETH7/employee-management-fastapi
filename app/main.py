@@ -134,32 +134,40 @@ def get_employee(
 
     return employee
 
-@app.post(
-    "/employees",
-    response_model=Employee,
-    status_code=status.HTTP_201_CREATED,
-)
-def create_new_employee(
-    employee_data: EmployeeCreate,
+@app.get("/work-items", response_model=WorkItemListResponse)
+def list_work_items(
+    search: str | None = Query(default=None, description="Case-insensitive partial title search."),
+    employee_id: int | None = Query(default=None, ge=1),
+    status_filter: WorkItemStatus | None = Query(default=None, alias="status"),
+    priority: WorkItemPriority | None = Query(default=None),
+    limit: int = Query(default=10, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
     try:
-        return create_employee(db, employee_data)
-
-    except ValueError as error:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(error),
+        total, items = get_all_work_items(
+            db, search, employee_id,
+            status_filter.value if status_filter else None,
+            priority.value if priority else None, limit, offset,
         )
-
+        return WorkItemListResponse(total=total, limit=limit, offset=offset, items=items)
     except RuntimeError as error:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(error),
-        )
-        
-        
-        
+        raise HTTPException(status_code=500, detail=str(error))
+
+
+@app.get("/work-items/{work_item_id}", response_model=WorkItemResponse)
+def get_work_item(work_item_id: int, db: Session = Depends(get_db)):
+    if work_item_id <= 0:
+        raise HTTPException(status_code=422, detail="Work item ID must be positive.")
+    try:
+        item = get_work_item_by_id(db, work_item_id)
+    except RuntimeError as error:
+        raise HTTPException(status_code=500, detail=str(error))
+    if item is None:
+        raise HTTPException(status_code=404, detail=f"Work item {work_item_id} not found.")
+    return item
+
+
 @app.put("/employees/{employee_id}", response_model=Employee)
 def update_existing_employee(
     employee_id: int,
@@ -200,6 +208,56 @@ def update_existing_employee(
     return employee
 
 
+@app.put("/work-items/{work_item_id}", response_model=WorkItemResponse)
+def update_existing_work_item(work_item_id: int, data: WorkItemUpdate, db: Session = Depends(get_db)):
+    if work_item_id <= 0:
+        raise HTTPException(status_code=422, detail="Work item ID must be positive.")
+    try:
+        item = update_work_item(db, work_item_id, data)
+    except LookupError as error:
+        raise HTTPException(status_code=404, detail=str(error))
+    except RuntimeError as error:
+        raise HTTPException(status_code=500, detail=str(error))
+    if item is None:
+        raise HTTPException(status_code=404, detail=f"Work item {work_item_id} not found.")
+    return item
+
+
+@app.post(
+    "/employees",
+    response_model=Employee,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_new_employee(
+    employee_data: EmployeeCreate,
+    db: Session = Depends(get_db),
+):
+    try:
+        return create_employee(db, employee_data)
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        )
+
+    except RuntimeError as error:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(error),
+        )
+
+
+@app.post("/work-items", response_model=WorkItemResponse, status_code=status.HTTP_201_CREATED)
+def create_new_work_item(data: WorkItemCreate, db: Session = Depends(get_db)):
+    try:
+        return create_work_item(db, data)
+    except LookupError as error:
+        raise HTTPException(status_code=404, detail=str(error))
+    except RuntimeError as error:
+        raise HTTPException(status_code=500, detail=str(error))
+
+
 @app.delete("/employees/{employee_id}")
 def delete_existing_employee(
     employee_id: int,
@@ -227,65 +285,6 @@ def delete_existing_employee(
         )
 
     return {"message": f"Employee Id {employee_id} deleted successfully."}
-
-
-@app.post("/work-items", response_model=WorkItemResponse, status_code=status.HTTP_201_CREATED)
-def create_new_work_item(data: WorkItemCreate, db: Session = Depends(get_db)):
-    try:
-        return create_work_item(db, data)
-    except LookupError as error:
-        raise HTTPException(status_code=404, detail=str(error))
-    except RuntimeError as error:
-        raise HTTPException(status_code=500, detail=str(error))
-
-
-@app.get("/work-items", response_model=WorkItemListResponse)
-def list_work_items(
-    search: str | None = Query(default=None, description="Case-insensitive partial title search."),
-    employee_id: int | None = Query(default=None, ge=1),
-    status_filter: WorkItemStatus | None = Query(default=None, alias="status"),
-    priority: WorkItemPriority | None = Query(default=None),
-    limit: int = Query(default=10, ge=1, le=100),
-    offset: int = Query(default=0, ge=0),
-    db: Session = Depends(get_db),
-):
-    try:
-        total, items = get_all_work_items(
-            db, search, employee_id,
-            status_filter.value if status_filter else None,
-            priority.value if priority else None, limit, offset,
-        )
-        return WorkItemListResponse(total=total, limit=limit, offset=offset, items=items)
-    except RuntimeError as error:
-        raise HTTPException(status_code=500, detail=str(error))
-
-
-@app.get("/work-items/{work_item_id}", response_model=WorkItemResponse)
-def get_work_item(work_item_id: int, db: Session = Depends(get_db)):
-    if work_item_id <= 0:
-        raise HTTPException(status_code=422, detail="Work item ID must be positive.")
-    try:
-        item = get_work_item_by_id(db, work_item_id)
-    except RuntimeError as error:
-        raise HTTPException(status_code=500, detail=str(error))
-    if item is None:
-        raise HTTPException(status_code=404, detail=f"Work item {work_item_id} not found.")
-    return item
-
-
-@app.put("/work-items/{work_item_id}", response_model=WorkItemResponse)
-def update_existing_work_item(work_item_id: int, data: WorkItemUpdate, db: Session = Depends(get_db)):
-    if work_item_id <= 0:
-        raise HTTPException(status_code=422, detail="Work item ID must be positive.")
-    try:
-        item = update_work_item(db, work_item_id, data)
-    except LookupError as error:
-        raise HTTPException(status_code=404, detail=str(error))
-    except RuntimeError as error:
-        raise HTTPException(status_code=500, detail=str(error))
-    if item is None:
-        raise HTTPException(status_code=404, detail=f"Work item {work_item_id} not found.")
-    return item
 
 
 @app.delete("/work-items/{work_item_id}", status_code=status.HTTP_204_NO_CONTENT)
