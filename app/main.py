@@ -272,6 +272,12 @@ def delete_existing_employee(
     try:
         deleted = delete_employee(db, employee_id)
 
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        )
+
     except RuntimeError as error:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -287,7 +293,7 @@ def delete_existing_employee(
     return {"message": f"Employee Id {employee_id} deleted successfully."}
 
 
-@app.delete("/work-items/{work_item_id}", status_code=status.HTTP_204_NO_CONTENT)
+@app.delete("/work-items/{work_item_id}")
 def delete_existing_work_item(work_item_id: int, db: Session = Depends(get_db)):
     if work_item_id <= 0:
         raise HTTPException(status_code=422, detail="Work item ID must be positive.")
@@ -297,4 +303,4 @@ def delete_existing_work_item(work_item_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(error))
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Work item {work_item_id} not found.")
-    return None
+    return {"message": f"Work item {work_item_id} deleted successfully."}
