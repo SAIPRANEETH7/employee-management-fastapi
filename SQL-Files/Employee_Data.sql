@@ -14,6 +14,10 @@ select * from employees where primary_skill LIKE '%Java%';
 
 select * from employees where is_active = "1";
 
-select * from work_items WHERE status = 'In Progress';
+select * from work_items;
+
+select * from work_items WHERE status = 'TODO';
+
+select * from work_items WHERE status = 'COMPLETED';
 
 show databases;
