@@ -14,6 +14,6 @@ select * from employees where primary_skill LIKE '%Java%';
 
 select * from employees where is_active = "1";
 
-
+select * from work_items WHERE status = 'In Progress';
 
 show databases;

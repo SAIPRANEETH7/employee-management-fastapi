@@ -176,6 +176,12 @@ def delete_employee(
 
         return True
 
+    except IntegrityError as error:
+        db.rollback()
+        raise ValueError(
+            "Employee cannot be deleted while work items are assigned to them."
+        ) from error
+
     except SQLAlchemyError:
         db.rollback()
         raise RuntimeError("Database operation failed.")
