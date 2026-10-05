@@ -597,5 +597,3 @@ Version 4.0.0
 ## Summary
 
 Task 4 extends the Employee Management API with employee-assigned work items, a foreign key and SQLAlchemy relationship, validation, CRUD endpoints, and database-side search, filtering, ordering, counting, and pagination. Existing employee endpoints remain available.
-
-Thank You.
