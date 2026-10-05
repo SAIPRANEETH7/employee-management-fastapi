@@ -371,31 +371,31 @@ Examples include Engineering, Backend, Product, Cybersecurity, QA, Finance, DevO
 
 ## API Test Evidence
 
-`Screenshots/` retains the Task 1–3 evidence and includes six Task 4 request/response evidence images generated from actual local HTTP exchanges. Each image shows the request, actual status, and response body. Observed results: create existing employee `201`; nonexistent employee `404`; get/search/filter/combined filters/pagination `200`; invalid status, invalid priority, and blank title `422`; missing item `404`; reassignment `200`; deletion `204`; existing employee CRUD/list and health endpoints `200`. The list was queried again after stopping and restarting Uvicorn; work-item rows remained available.
+`Screenshots/` retains the Task 1–3 evidence and includes Task 4 screenshots. Observed results: create existing employee `201`; nonexistent employee `404`; get/search/filter/combined filters/pagination `200`; invalid status, invalid priority, and blank title `422`; missing item `404`; reassignment `200`; deletion `200` with a success message; existing employee CRUD/list and health endpoints `200`. The list was queried again after stopping and restarting Uvicorn; work-item rows remained available.
 
 ### Create a work item
 
-![POST /work-items, actual 201 response with assigned employee](Screenshots/Task4-Create-201.svg)
+![Assigning a work item to an employee](Screenshots/Assigning%20a%20Task%20to%20a%20employee.png)
 
-### Combined filters
+### Get a work item by ID
 
-![GET /work-items with combined filters and actual response](Screenshots/Task4-Combined-Filters-200.svg)
+![Get a work item by ID](Screenshots/Getting%20work%20item%20by%20ID.png)
 
-### Blank title validation
+### Invalid work-item offset
 
-![POST /work-items with whitespace title, actual 422 response](Screenshots/Task4-Blank-Title-422.svg)
+![Work item pagination offset validation](Screenshots/Work%20item%20offset%20value%20error.png)
 
-### Assignment to a nonexistent employee
+### Invalid work-item limit and offset
 
-![POST /work-items with nonexistent employee, actual 404 response](Screenshots/Task4-Employee-Not-Found-404.svg)
+![Work item pagination limit and offset validation](Screenshots/work%20item%20limit%20and%20offset%20value%20error.png)
 
 ### Reassign and update
 
-![PUT /work-items with reassignment, actual 200 response](Screenshots/Task4-Reassign-Update-200.svg)
+![Work item status update](Screenshots/Work-item%20status%20updated.png)
 
 ### Delete
 
-![DELETE /work-items, actual 204 response with empty body](Screenshots/Task4-Delete-204.svg)
+![Delete a work item](Screenshots/Employee%20work%20item%20deleted%20successfully.png)
 
 ## What I Learned
 
@@ -483,7 +483,7 @@ Task 4 adds persistent work items assigned to existing employees. The `work_item
 | GET | `/work-items` | `200 OK`, paginated list |
 | GET | `/work-items/{work_item_id}` | `200 OK` |
 | PUT | `/work-items/{work_item_id}` | `200 OK`; accepts the fields to change |
-| DELETE | `/work-items/{work_item_id}` | `204 No Content` |
+| DELETE | `/work-items/{work_item_id}` | `200 OK`, success message |
 
 Every item response includes its assigned employee's `id`, `name`, and `email` in `assigned_employee`.
 
@@ -565,7 +565,7 @@ Content-Type: application/json
 - Unknown employee on create or reassignment: `404 Not Found`.
 - Missing work-item ID: `404 Not Found`.
 - Invalid status or priority, blank title, non-positive employee ID, invalid date, or invalid pagination values: `422 Unprocessable Entity`.
-- Deleting an item succeeds with an empty `204` response.
+- Deleting an item succeeds with a `200` response and a success message.
 - Invalid or duplicate employee data continues to use the existing employee endpoint behavior.
 - The foreign key uses `ON DELETE RESTRICT`; an employee with work items cannot be removed at the database level until those items are removed.
 
