@@ -52,6 +52,14 @@ class EmployeeListResponse(BaseModel):
     items: list[Employee]
 
 
+class EmployeeWorkSummary(BaseModel):
+    employee_id: int
+    total_work_items: int
+    todo: int
+    in_progress: int
+    completed: int
+
+
 class WorkItemStatus(str, Enum):
     TODO = "TODO"
     IN_PROGRESS = "IN_PROGRESS"
@@ -103,6 +111,10 @@ class WorkItemUpdate(BaseModel):
         if not value:
             raise ValueError("Title cannot be empty or whitespace only.")
         return value
+
+
+class WorkItemStatusUpdate(BaseModel):
+    status: WorkItemStatus
 
 
 class AssignedEmployee(BaseModel):

@@ -479,13 +479,34 @@ Task 4 adds persistent work items assigned to existing employees. The `work_item
 
 | Method | Endpoint | Success |
 |---|---|---|
+| GET | `/employees/{employee_id}/work-summary` | `200 OK`, counts by work-item status |
 | POST | `/work-items` | `201 Created` |
 | GET | `/work-items` | `200 OK`, paginated list |
 | GET | `/work-items/{work_item_id}` | `200 OK` |
-| PUT | `/work-items/{work_item_id}` | `200 OK`; accepts the fields to change |
+| PATCH | `/work-items/{work_item_id}/status` | `200 OK`; updates status through the allowed transitions |
+| PUT | `/work-items/{work_item_id}` | `200 OK`; accepts fields to change and applies the same status-transition rules |
 | DELETE | `/work-items/{work_item_id}` | `200 OK`, success message |
 
 Every item response includes its assigned employee's `id`, `name`, and `email` in `assigned_employee`.
+
+### Employee work summary
+
+`GET /employees/{employee_id}/work-summary` returns the current database-backed
+work-item total and counts for each status. Deleted work items are not counted,
+and an existing employee with no assigned items receives zero for every count.
+A nonexistent employee returns `404 Not Found`.
+
+Example response:
+
+```json
+{
+  "employee_id": 1,
+  "total_work_items": 5,
+  "todo": 2,
+  "in_progress": 2,
+  "completed": 1
+}
+```
 
 Create example:
 
@@ -560,11 +581,30 @@ Content-Type: application/json
 {"employee_id": 3, "status": "IN_PROGRESS", "priority": "HIGH"}
 ```
 
+Status-only update example:
+
+```http
+PATCH /work-items/1/status
+Content-Type: application/json
+```
+
+```json
+{"status": "IN_PROGRESS"}
+```
+
+Statuses can advance from `TODO` to `IN_PROGRESS` and from `IN_PROGRESS` to
+`COMPLETED`. Repeating the current status is allowed without changing the
+item. Skipping a stage or moving backward returns `400 Bad Request`; a
+rejected PUT does not apply any of its other fields. PUT requests that omit
+`status` preserve the current status. New work items must start as `TODO`;
+requesting another valid initial status returns `400 Bad Request`.
+
 ### Validation and error cases
 
 - Unknown employee on create or reassignment: `404 Not Found`.
 - Missing work-item ID: `404 Not Found`.
-- Invalid status or priority, blank title, non-positive employee ID, invalid date, or invalid pagination values: `422 Unprocessable Entity`.
+- Invalid status or priority, blank title, non-positive employee ID, invalid date, missing/null PATCH status, or invalid pagination values: `422 Unprocessable Entity`.
+- Disallowed status transitions or a prohibited initial status: `400 Bad Request`.
 - Deleting an item succeeds with a `200` response and a success message.
 - Invalid or duplicate employee data continues to use the existing employee endpoint behavior.
 - The foreign key uses `ON DELETE RESTRICT`; an employee with work items cannot be removed at the database level until those items are removed.

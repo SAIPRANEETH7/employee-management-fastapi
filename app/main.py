@@ -3,20 +3,22 @@ from sqlalchemy.orm import Session
 
 from .database import create_tables, get_db
 from .schemas import (
-    Employee, EmployeeCreate, EmployeeListResponse, WorkItemCreate,
+    Employee, EmployeeCreate, EmployeeListResponse, EmployeeWorkSummary, WorkItemCreate,
     WorkItemListResponse, WorkItemPriority, WorkItemResponse, WorkItemStatus,
-    WorkItemUpdate,
+    WorkItemStatusUpdate, WorkItemUpdate,
 )
 from .services import (
     create_employee,
     get_all_employees,
     get_employee_by_id,
+    get_employee_work_summary,
     update_employee,
     delete_employee,
     create_work_item,
     get_all_work_items,
     get_work_item_by_id,
     update_work_item,
+    update_work_item_status,
     delete_work_item,
 )
 
@@ -134,6 +136,38 @@ def get_employee(
 
     return employee
 
+
+@app.get(
+    "/employees/{employee_id}/work-summary",
+    response_model=EmployeeWorkSummary,
+)
+def get_employee_work_summary_endpoint(
+    employee_id: int,
+    db: Session = Depends(get_db),
+):
+    if employee_id <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Employee ID must be greater than zero.",
+        )
+
+    try:
+        summary = get_employee_work_summary(db, employee_id)
+    except RuntimeError as error:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(error),
+        )
+
+    if summary is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Employee {employee_id} not found.",
+        )
+
+    return summary
+
+
 @app.get("/work-items", response_model=WorkItemListResponse)
 def list_work_items(
     search: str | None = Query(default=None, description="Case-insensitive partial title search."),
@@ -214,8 +248,29 @@ def update_existing_work_item(work_item_id: int, data: WorkItemUpdate, db: Sessi
         raise HTTPException(status_code=422, detail="Work item ID must be positive.")
     try:
         item = update_work_item(db, work_item_id, data)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
     except LookupError as error:
         raise HTTPException(status_code=404, detail=str(error))
+    except RuntimeError as error:
+        raise HTTPException(status_code=500, detail=str(error))
+    if item is None:
+        raise HTTPException(status_code=404, detail=f"Work item {work_item_id} not found.")
+    return item
+
+
+@app.patch("/work-items/{work_item_id}/status", response_model=WorkItemResponse)
+def update_existing_work_item_status(
+    work_item_id: int,
+    data: WorkItemStatusUpdate,
+    db: Session = Depends(get_db),
+):
+    if work_item_id <= 0:
+        raise HTTPException(status_code=422, detail="Work item ID must be positive.")
+    try:
+        item = update_work_item_status(db, work_item_id, data.status.value)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
     except RuntimeError as error:
         raise HTTPException(status_code=500, detail=str(error))
     if item is None:
@@ -252,6 +307,8 @@ def create_new_employee(
 def create_new_work_item(data: WorkItemCreate, db: Session = Depends(get_db)):
     try:
         return create_work_item(db, data)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
     except LookupError as error:
         raise HTTPException(status_code=404, detail=str(error))
     except RuntimeError as error:
