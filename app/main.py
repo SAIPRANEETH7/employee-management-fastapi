@@ -26,7 +26,7 @@ from .services import (
 app = FastAPI(
     title="Employee Management API",
     description="Backend API for managing employees and assigned work items.",
-    version="4.0.0",
+    version="5.0.0",
 )
 
 

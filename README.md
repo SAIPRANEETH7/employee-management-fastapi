@@ -2,12 +2,13 @@
 
 A RESTful Employee Management Backend API built with FastAPI, Pydantic, SQLAlchemy, MySQL, and PyMySQL.
 
-The project has been extended through four stages:
+The project has been extended through five stages:
 
 - **Task 1:** Employee records were stored temporarily in a Python list.
 - **Task 2:** Employee records were migrated to MySQL using SQLAlchemy ORM with persistent CRUD operations.
 - **Task 3:** The employee list endpoint was extended with SQLAlchemy-based search, filtering, sorting, and pagination.
 - **Task 4:** Work items were added with employee foreign-key assignments, relationships, CRUD endpoints, and filtered pagination.
+- **Task 5:** Ordered work-item status transitions and a database-backed employee work summary were added.
 
 ## Features
 
@@ -611,7 +612,7 @@ requesting another valid initial status returns `400 Bad Request`.
 
 ### Task 4 verification and screenshots
 
-The Task 4 test pass should cover creation for a real employee, nonexistent employee, retrieval by ID, case-insensitive partial search, individual and combined filters, pagination, reassignment/update, invalid status/priority/title, missing IDs, deletion, application restart persistence, and employee API regression checks. Capture Swagger UI screenshots showing the request, HTTP status, and response body for representative success and validation/error cases in `Screenshots/`.
+Task 4 verification covered creation, retrieval, search, filters, pagination, reassignment/update, validation errors, deletion, restart persistence, and employee API regression checks. Representative Task 4 screenshots remain in `Screenshots/`.
 
 ### What I learned and difficulties
 
@@ -626,14 +627,58 @@ The main Task 4 learning was how a foreign key and ORM relationship connect inde
 - PUT applies only supplied fields, allowing focused edits and reassignment.
 - Deleting an employee that still has work items is restricted by the foreign key.
 
+### Task 5 status and summary examples
+
+Create requests may omit `status` (it defaults to `TODO`) or explicitly supply `TODO`. Supplying `IN_PROGRESS` or `COMPLETED` at creation returns `400` with `New work items must have TODO status.` Invalid enum values return `422`.
+
+Status transitions are strictly ordered:
+
+| Current | Requested | Result |
+|---|---|---|
+| `TODO` | `IN_PROGRESS` | `200`; updated work item |
+| `IN_PROGRESS` | `COMPLETED` | `200`; updated work item |
+| Any status | Same status | `200`; unchanged work item |
+| Any other change | Skipped or backward transition | `400`; record unchanged |
+| Any status | Invalid, null, or missing PATCH status | `422` |
+| Missing work item | Any PATCH | `404` |
+
+The same transition rule applies to a supplied status in `PUT /work-items/{work_item_id}`. A PUT with no status preserves the current value. A rejected status transition rejects the whole update, including other supplied fields.
+
+```http
+PATCH /work-items/1/status
+Content-Type: application/json
+```
+
+```json
+{"status": "IN_PROGRESS"}
+```
+
+A successful response is the updated work item, including its current assigned employee. `GET /employees/1/work-summary` returns counts by current assignment:
+
+```json
+{
+  "employee_id": 1,
+  "total_work_items": 5,
+  "todo": 2,
+  "in_progress": 2,
+  "completed": 1
+}
+```
+
+The employee summary counts only work items currently assigned to that employee. Reassignment changes which employee's summary includes an item, and deletion removes it from all summaries. An employee with no work items gets zero in each count; a nonexistent employee gets `404`.
+
+### Task 5 verification and screenshots
+
+Task 5 automated service checks cover allowed and rejected transitions, repeated status, invalid creation and PATCH payloads, PUT status preservation, atomic rejection, missing records, summary changes after status updates, reassignment, and deletion. Existing `Screenshots/` contains successful status-change captures from the Swagger UI. API-level restart persistence and new Task 5 error screenshots still require a live MySQL/Swagger capture pass.
+
 ## Version
 
 ```text
-Task 4
+Task 5
 Employee Management API
-Version 4.0.0
+Version 5.0.0
 ```
 
 ## Summary
 
-Task 4 extends the Employee Management API with employee-assigned work items, a foreign key and SQLAlchemy relationship, validation, CRUD endpoints, and database-side search, filtering, ordering, counting, and pagination. Existing employee endpoints remain available.
+Task 5 extends the employee and work-item API with ordered status transitions, all-or-nothing status validation on updates, and a SQLAlchemy-backed per-employee work summary. Existing employee CRUD and work-item endpoints remain available.
