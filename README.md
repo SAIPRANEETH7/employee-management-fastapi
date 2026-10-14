@@ -93,13 +93,12 @@ cd employee-management-fastapi
 
 ```powershell
 python -m venv NewEnv
-NewEnv\Scripts\activate
 ```
 
 ### 3. Install dependencies
 
 ```powershell
-pip install -r requirements.txt
+.\NewEnv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
 ### 4. Create the MySQL database
@@ -128,8 +127,10 @@ Replace `YOUR_PASSWORD` with the local MySQL password. If the password contains 
 ### 6. Start the application
 
 ```powershell
-python -m uvicorn app.main:app --reload
+.\NewEnv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
 ```
+
+If port `8000` is already in use by another running instance, stop that instance or use another port, such as `8001`, and open the matching `/docs` URL.
 
 The API runs at:
 
