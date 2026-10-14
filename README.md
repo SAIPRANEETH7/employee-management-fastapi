@@ -684,3 +684,4 @@ Version 5.0.0
 ## Summary
 
 Task 5 extends the employee and work-item API with ordered status transitions, all-or-nothing status validation on updates, and a SQLAlchemy-backed per-employee work summary. Existing employee CRUD and work-item endpoints remain available.
+<!-- Repository review: 2026-10-14 -->

@@ -370,3 +370,4 @@ def delete_work_item(db: Session, work_item_id: int) -> bool:
     except SQLAlchemyError:
         db.rollback()
         raise RuntimeError("Database operation failed.")
+# Repository review: 2026-10-14
