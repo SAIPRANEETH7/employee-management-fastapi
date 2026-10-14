@@ -87,6 +87,7 @@ python --version
 ```powershell
 git clone https://github.com/SAIPRANEETH7/employee-management-fastapi.git
 cd employee-management-fastapi
+git switch task-5
 ```
 
 ### 2. Create the virtual environment
