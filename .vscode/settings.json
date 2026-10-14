@@ -14,5 +14,19 @@
             "username": "root",
             "name": "Local Instance MySQL80"
         }
+    ],
+    "cSpell.words": [
+        "Ananya",
+        "ASGI",
+        "Bengaluru",
+        "fastapi",
+        "ilike",
+        "Pydantic",
+        "pymysql",
+        "Rahul",
+        "Reddy",
+        "Sharma",
+        "uvicorn",
+        "venv"
     ]
 }

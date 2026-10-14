@@ -1,8 +1,25 @@
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
 
 from .models import Employee, WorkItem
+
+
+def _validate_work_item_status_transition(
+    current_status: str,
+    requested_status: str,
+) -> None:
+    allowed_transitions = {
+        "TODO": "IN_PROGRESS",
+        "IN_PROGRESS": "COMPLETED",
+    }
+    if (
+        current_status != requested_status
+        and allowed_transitions.get(current_status) != requested_status
+    ):
+        raise ValueError(
+            f"Work item status cannot transition from {current_status} to {requested_status}."
+        )
 
 
 def create_employee(
@@ -112,6 +129,35 @@ def get_employee_by_id(
         raise RuntimeError("Database operation failed.")
 
 
+def get_employee_work_summary(
+    db: Session,
+    employee_id: int,
+) -> dict[str, int] | None:
+    try:
+        if db.get(Employee, employee_id) is None:
+            return None
+
+        counts = db.execute(
+            select(
+                func.count(WorkItem.id),
+                func.count(case((WorkItem.status == "TODO", WorkItem.id))),
+                func.count(case((WorkItem.status == "IN_PROGRESS", WorkItem.id))),
+                func.count(case((WorkItem.status == "COMPLETED", WorkItem.id))),
+            ).where(WorkItem.employee_id == employee_id)
+        ).one()
+
+        return {
+            "employee_id": employee_id,
+            "total_work_items": counts[0],
+            "todo": counts[1],
+            "in_progress": counts[2],
+            "completed": counts[3],
+        }
+    except SQLAlchemyError:
+        db.rollback()
+        raise RuntimeError("Database operation failed.")
+
+
 def update_employee(
     db: Session,
     employee_id: int,
@@ -194,6 +240,8 @@ def _ensure_employee(db: Session, employee_id: int) -> None:
 
 def create_work_item(db: Session, data) -> WorkItem:
     try:
+        if data.status != "TODO":
+            raise ValueError("New work items must have TODO status.")
         _ensure_employee(db, data.employee_id)
         item = WorkItem(
             title=data.title,
@@ -207,6 +255,9 @@ def create_work_item(db: Session, data) -> WorkItem:
         db.commit()
         return get_work_item_by_id(db, item.id)
     except LookupError:
+        db.rollback()
+        raise
+    except ValueError:
         db.rollback()
         raise
     except SQLAlchemyError:
@@ -265,6 +316,9 @@ def update_work_item(db: Session, work_item_id: int, data) -> WorkItem | None:
         if item is None:
             return None
         changes = data.model_dump(exclude_unset=True)
+        if "status" in changes:
+            requested_status = changes["status"].value
+            _validate_work_item_status_transition(item.status, requested_status)
         if "employee_id" in changes:
             _ensure_employee(db, changes["employee_id"])
         for key, value in changes.items():
@@ -272,6 +326,32 @@ def update_work_item(db: Session, work_item_id: int, data) -> WorkItem | None:
         db.commit()
         return get_work_item_by_id(db, work_item_id)
     except LookupError:
+        db.rollback()
+        raise
+    except ValueError:
+        db.rollback()
+        raise
+    except SQLAlchemyError:
+        db.rollback()
+        raise RuntimeError("Database operation failed.")
+
+
+def update_work_item_status(
+    db: Session,
+    work_item_id: int,
+    requested_status: str,
+) -> WorkItem | None:
+    try:
+        item = db.get(WorkItem, work_item_id)
+        if item is None:
+            return None
+        _validate_work_item_status_transition(item.status, requested_status)
+        if item.status == requested_status:
+            return get_work_item_by_id(db, work_item_id)
+        item.status = requested_status
+        db.commit()
+        return get_work_item_by_id(db, work_item_id)
+    except ValueError:
         db.rollback()
         raise
     except SQLAlchemyError:

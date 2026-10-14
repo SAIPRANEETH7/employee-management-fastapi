@@ -2,12 +2,13 @@
 
 A RESTful Employee Management Backend API built with FastAPI, Pydantic, SQLAlchemy, MySQL, and PyMySQL.
 
-The project has been extended through four stages:
+The project has been extended through five stages:
 
 - **Task 1:** Employee records were stored temporarily in a Python list.
 - **Task 2:** Employee records were migrated to MySQL using SQLAlchemy ORM with persistent CRUD operations.
 - **Task 3:** The employee list endpoint was extended with SQLAlchemy-based search, filtering, sorting, and pagination.
 - **Task 4:** Work items were added with employee foreign-key assignments, relationships, CRUD endpoints, and filtered pagination.
+- **Task 5:** Ordered work-item status transitions and a database-backed employee work summary were added.
 
 ## Features
 
@@ -479,13 +480,34 @@ Task 4 adds persistent work items assigned to existing employees. The `work_item
 
 | Method | Endpoint | Success |
 |---|---|---|
+| GET | `/employees/{employee_id}/work-summary` | `200 OK`, counts by work-item status |
 | POST | `/work-items` | `201 Created` |
 | GET | `/work-items` | `200 OK`, paginated list |
 | GET | `/work-items/{work_item_id}` | `200 OK` |
-| PUT | `/work-items/{work_item_id}` | `200 OK`; accepts the fields to change |
+| PATCH | `/work-items/{work_item_id}/status` | `200 OK`; updates status through the allowed transitions |
+| PUT | `/work-items/{work_item_id}` | `200 OK`; accepts fields to change and applies the same status-transition rules |
 | DELETE | `/work-items/{work_item_id}` | `200 OK`, success message |
 
 Every item response includes its assigned employee's `id`, `name`, and `email` in `assigned_employee`.
+
+### Employee work summary
+
+`GET /employees/{employee_id}/work-summary` returns the current database-backed
+work-item total and counts for each status. Deleted work items are not counted,
+and an existing employee with no assigned items receives zero for every count.
+A nonexistent employee returns `404 Not Found`.
+
+Example response:
+
+```json
+{
+  "employee_id": 1,
+  "total_work_items": 5,
+  "todo": 2,
+  "in_progress": 2,
+  "completed": 1
+}
+```
 
 Create example:
 
@@ -560,10 +582,30 @@ Content-Type: application/json
 {"employee_id": 3, "status": "IN_PROGRESS", "priority": "HIGH"}
 ```
 
+Status-only update example:
+
+```http
+PATCH /work-items/1/status
+Content-Type: application/json
+```
+
+```json
+{"status": "IN_PROGRESS"}
+```
+
+Statuses can advance from `TODO` to `IN_PROGRESS` and from `IN_PROGRESS` to
+`COMPLETED`. Repeating the current status is allowed without changing the
+item. Skipping a stage or moving backward returns `400 Bad Request`; a
+rejected PUT does not apply any of its other fields. PUT requests that omit
+`status` preserve the current status. New work items must start as `TODO`;
+requesting another valid initial status returns `400 Bad Request`.
+
 ### Validation and error cases
 
 - Unknown employee on create or reassignment: `404 Not Found`.
 - Missing work-item ID: `404 Not Found`.
+- Invalid status or priority, blank title, non-positive employee ID, invalid date, missing/null PATCH status, or invalid pagination values: `422 Unprocessable Entity`.
+- Disallowed status transitions or a prohibited initial status: `400 Bad Request`.
 - Invalid status or priority, blank title, non-positive employee ID, invalid date, or invalid pagination values: `422 Unprocessable Entity`.
 - Deleting an item succeeds with a `200` response and a success message.
 - Invalid or duplicate employee data continues to use the existing employee endpoint behavior.
@@ -571,7 +613,7 @@ Content-Type: application/json
 
 ### Task 4 verification and screenshots
 
-The Task 4 test pass should cover creation for a real employee, nonexistent employee, retrieval by ID, case-insensitive partial search, individual and combined filters, pagination, reassignment/update, invalid status/priority/title, missing IDs, deletion, application restart persistence, and employee API regression checks. Capture Swagger UI screenshots showing the request, HTTP status, and response body for representative success and validation/error cases in `Screenshots/`.
+Task 4 verification covered creation, retrieval, search, filters, pagination, reassignment/update, validation errors, deletion, restart persistence, and employee API regression checks. Representative Task 4 screenshots remain in `Screenshots/`.
 
 ### What I learned and difficulties
 
@@ -586,14 +628,58 @@ The main Task 4 learning was how a foreign key and ORM relationship connect inde
 - PUT applies only supplied fields, allowing focused edits and reassignment.
 - Deleting an employee that still has work items is restricted by the foreign key.
 
+### Task 5 status and summary examples
+
+Create requests may omit `status` (it defaults to `TODO`) or explicitly supply `TODO`. Supplying `IN_PROGRESS` or `COMPLETED` at creation returns `400` with `New work items must have TODO status.` Invalid enum values return `422`.
+
+Status transitions are strictly ordered:
+
+| Current | Requested | Result |
+|---|---|---|
+| `TODO` | `IN_PROGRESS` | `200`; updated work item |
+| `IN_PROGRESS` | `COMPLETED` | `200`; updated work item |
+| Any status | Same status | `200`; unchanged work item |
+| Any other change | Skipped or backward transition | `400`; record unchanged |
+| Any status | Invalid, null, or missing PATCH status | `422` |
+| Missing work item | Any PATCH | `404` |
+
+The same transition rule applies to a supplied status in `PUT /work-items/{work_item_id}`. A PUT with no status preserves the current value. A rejected status transition rejects the whole update, including other supplied fields.
+
+```http
+PATCH /work-items/1/status
+Content-Type: application/json
+```
+
+```json
+{"status": "IN_PROGRESS"}
+```
+
+A successful response is the updated work item, including its current assigned employee. `GET /employees/1/work-summary` returns counts by current assignment:
+
+```json
+{
+  "employee_id": 1,
+  "total_work_items": 5,
+  "todo": 2,
+  "in_progress": 2,
+  "completed": 1
+}
+```
+
+The employee summary counts only work items currently assigned to that employee. Reassignment changes which employee's summary includes an item, and deletion removes it from all summaries. An employee with no work items gets zero in each count; a nonexistent employee gets `404`.
+
+### Task 5 verification and screenshots
+
+Task 5 automated service checks cover allowed and rejected transitions, repeated status, invalid creation and PATCH payloads, PUT status preservation, atomic rejection, missing records, summary changes after status updates, reassignment, and deletion. Existing `Screenshots/` contains successful status-change captures from the Swagger UI. API-level restart persistence and new Task 5 error screenshots still require a live MySQL/Swagger capture pass.
+
 ## Version
 
 ```text
-Task 4
+Task 5
 Employee Management API
-Version 4.0.0
+Version 5.0.0
 ```
 
 ## Summary
 
-Task 4 extends the Employee Management API with employee-assigned work items, a foreign key and SQLAlchemy relationship, validation, CRUD endpoints, and database-side search, filtering, ordering, counting, and pagination. Existing employee endpoints remain available.
+Task 5 extends the employee and work-item API with ordered status transitions, all-or-nothing status validation on updates, and a SQLAlchemy-backed per-employee work summary. Existing employee CRUD and work-item endpoints remain available.
