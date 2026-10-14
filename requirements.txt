@@ -22,4 +22,3 @@ mysql-connector-python==8.1.0
 
 # Development tooling
 mypy==1.5.1
-# Repository review: 2026-10-14

@@ -102,4 +102,3 @@ class WorkItem(Base):
     assigned_employee: Mapped[Employee] = relationship(
         back_populates="work_items"
         )
-# Repository review: 2026-10-14

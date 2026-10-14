@@ -361,4 +361,3 @@ def delete_existing_work_item(work_item_id: int, db: Session = Depends(get_db)):
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Work item {work_item_id} not found.")
     return {"message": f"Work item {work_item_id} deleted successfully."}
-# Repository review: 2026-10-14

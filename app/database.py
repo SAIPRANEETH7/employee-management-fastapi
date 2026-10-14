@@ -33,4 +33,3 @@ def get_db():
         yield db
     finally:
         db.close()
-# Repository review: 2026-10-14
