@@ -606,7 +606,6 @@ requesting another valid initial status returns `400 Bad Request`.
 - Missing work-item ID: `404 Not Found`.
 - Invalid status or priority, blank title, non-positive employee ID, invalid date, missing/null PATCH status, or invalid pagination values: `422 Unprocessable Entity`.
 - Disallowed status transitions or a prohibited initial status: `400 Bad Request`.
-- Invalid status or priority, blank title, non-positive employee ID, invalid date, or invalid pagination values: `422 Unprocessable Entity`.
 - Deleting an item succeeds with a `200` response and a success message.
 - Invalid or duplicate employee data continues to use the existing employee endpoint behavior.
 - The foreign key uses `ON DELETE RESTRICT`; an employee with work items cannot be removed at the database level until those items are removed.
