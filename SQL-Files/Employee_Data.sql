@@ -20,4 +20,7 @@ select * from work_items WHERE status = 'TODO';
 
 select * from work_items WHERE status = 'COMPLETED';
 
+select * from work_items WHERE status = 'in_progress';
+
+
 show databases;
