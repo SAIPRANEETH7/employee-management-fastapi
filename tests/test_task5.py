@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
 from app.database import Base
-from app.models import Employee, WorkItem
-from app.schemas import WorkItemCreate, WorkItemStatus, WorkItemStatusUpdate, WorkItemUpdate
+from app.models import Employee
+from app.schemas import WorkItemCreate, WorkItemStatusUpdate, WorkItemUpdate
 from app.services import (
     create_work_item, delete_work_item, get_employee_work_summary,
     get_work_item_by_id, update_work_item, update_work_item_status,
@@ -47,6 +47,10 @@ class Task5ServiceTests(unittest.TestCase):
     def test_creation_validation_and_transitions(self):
         item = self.make_item()
         self.assertEqual(item.status, "TODO")
+        skipped_item = self.make_item(title="Skipped transition")
+        with self.assertRaises(ValueError):
+            update_work_item_status(self.db, skipped_item.id, "COMPLETED")
+        self.assertEqual(get_work_item_by_id(self.db, skipped_item.id).status, "TODO")
         for value in ("IN_PROGRESS", "COMPLETED"):
             with self.assertRaises(ValueError):
                 self.make_item(title="Invalid initial", status=value)
@@ -55,6 +59,8 @@ class Task5ServiceTests(unittest.TestCase):
         for body in ({}, {"status": None}, {"status": "INVALID"}):
             with self.assertRaises(ValidationError):
                 WorkItemStatusUpdate.model_validate(body)
+        with self.assertRaises(LookupError):
+            self.make_item(employee_id=9999)
 
         changed = update_work_item_status(self.db, item.id, "IN_PROGRESS")
         self.assertEqual(changed.status, "IN_PROGRESS")
