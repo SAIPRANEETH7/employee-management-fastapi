@@ -1,16 +1,190 @@
 # Employee Management API
 
-A RESTful Employee Management Backend API built with FastAPI, Pydantic, SQLAlchemy, MySQL, and PyMySQL.
+A RESTful employee and work-item backend built with FastAPI, Pydantic, SQLAlchemy, MySQL, PyMySQL, and HTTPX.
 
-The project has been extended through five stages:
+The current submission is **Task 6**, on branch `task-6`. It runs Employee Service and Work Item Service as separate FastAPI applications with separate MySQL databases. Tasks 1–5 remain documented below as project history.
+
+The project has been extended through six stages:
 
 - **Task 1:** Employee records were stored temporarily in a Python list.
 - **Task 2:** Employee records were migrated to MySQL using SQLAlchemy ORM with persistent CRUD operations.
 - **Task 3:** The employee list endpoint was extended with SQLAlchemy-based search, filtering, sorting, and pagination.
 - **Task 4:** Work items were added with employee foreign-key assignments, relationships, CRUD endpoints, and filtered pagination.
 - **Task 5:** Ordered work-item status transitions and a database-backed employee work summary were added.
+- **Task 6:** The employee and work-item APIs were separated into independently running services connected by an HTTP API call.
 
-## Features
+## Task 6 - Independent Employee and Work Item Services
+
+Task 6 adds two separately started FastAPI applications in `employee_service/` and `work_item_service/`. The original Task 5 application and its database configuration remain in the repository unchanged. Each new service owns its own SQLAlchemy engine, model metadata, schemas, service layer, dependency list, Swagger UI, and MySQL database. Startup creates the service's tables if they do not exist; it does not migrate or delete Task 5 data.
+
+The Work Item Service stores `employee_id` as an integer. It has no employee table, foreign key, or ORM relationship. Before it saves a new work item, it requests the employee from the Employee Service using HTTPX and a 5-second timeout. A valid employee permits the insert (`201`); an Employee Service `404` becomes `404 Employee not found`; a timeout, connection problem, or unexpected response becomes `503`. The list and get-by-ID endpoints only query the Work Item Service's database, so they work while the Employee Service is stopped.
+
+### Task 6 endpoints
+
+| Service | Method | Endpoint | Purpose |
+|---|---|---|---|
+| Employee Service (`8001`) | POST | `/employees` | Create an employee |
+| Employee Service (`8001`) | GET | `/employees` | List employees |
+| Employee Service (`8001`) | GET | `/employees/{employee_id}` | Get one employee |
+| Employee Service (`8001`) | GET | `/health` | Health check |
+| Work Item Service (`8002`) | POST | `/work-items` | Check employee then create a work item |
+| Work Item Service (`8002`) | GET | `/work-items` | List work items |
+| Work Item Service (`8002`) | GET | `/work-items/{work_item_id}` | Get one work item |
+| Work Item Service (`8002`) | GET | `/health` | Health check |
+
+### Task 6 prerequisites
+
+- Python 3.10 or newer
+- A local MySQL server and account that can create and access the two service databases
+- Git
+
+### Clone and select Task 6
+
+```powershell
+git clone https://github.com/SAIPRANEETH7/employee-management-fastapi.git
+cd employee-management-fastapi
+git switch task-6
+```
+
+### Create the two databases
+
+Start local MySQL, then run this in MySQL Workbench or the MySQL command-line client. These are new databases; leave the Task 5 `employee_management` database intact.
+
+```sql
+CREATE DATABASE employee_service_db;
+CREATE DATABASE work_item_service_db;
+```
+
+Each service creates only its own table on startup. Create a separate virtual environment and local `.env` for each service. Copy `.env.example` inside each service directory to `.env`, set the same local MySQL account with the correct database name, and do not commit `.env`.
+
+Employee Service `employee_service/.env`:
+
+```env
+EMPLOYEE_DATABASE_URL=mysql+pymysql://root:YOUR_PASSWORD@localhost:3306/employee_service_db
+```
+
+Work Item Service `work_item_service/.env`:
+
+```env
+WORK_ITEM_DATABASE_URL=mysql+pymysql://root:YOUR_PASSWORD@localhost:3306/work_item_service_db
+EMPLOYEE_SERVICE_URL=http://localhost:8001
+```
+
+URL-encode reserved characters in the database password. `.env.example` files contain placeholders only.
+
+### Install and run Employee Service
+
+In a PowerShell terminal:
+
+```powershell
+cd employee_service
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+Copy-Item .env.example .env
+# Edit .env with your MySQL credentials.
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8001
+```
+
+Employee Swagger UI: `http://localhost:8001/docs`; health check: `http://localhost:8001/health`.
+
+### Install and run Work Item Service
+
+Open a second PowerShell terminal from the repository root:
+
+```powershell
+cd work_item_service
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+Copy-Item .env.example .env
+# Edit .env with your MySQL credentials and Employee Service URL.
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8002
+```
+
+Work Item Swagger UI: `http://localhost:8002/docs`; health check: `http://localhost:8002/health`.
+
+### Example requests
+
+Create a fresh employee at `http://localhost:8001/employees`:
+
+```json
+{
+  "name": "Maya Patel",
+  "email": "maya.patel@example.com",
+  "department": "Engineering",
+  "primary_skill": "Python",
+  "location": "Bengaluru",
+  "work_mode": "WFH"
+}
+```
+
+The successful response is `201 Created` and includes its generated `id` and `created_at`. Assign a work item using that ID at `http://localhost:8002/work-items`:
+
+```json
+{
+  "title": "Prepare release notes",
+  "description": "Summarize this sprint",
+  "employee_id": 1,
+  "priority": "MEDIUM"
+}
+```
+
+Example Employee Service response (`201 Created`):
+
+```json
+{
+  "name": "Maya Patel",
+  "email": "maya.patel@example.com",
+  "department": "Engineering",
+  "primary_skill": "Python",
+  "location": "Bengaluru",
+  "work_mode": "WFH",
+  "is_active": true,
+  "id": 1,
+  "created_at": "2026-10-29T10:30:00"
+}
+```
+
+The successful response is `201 Created`, starts with `status: "TODO"`, and includes `employee_id` plus the work item's own fields. For an unknown employee, the response is `404` with `{"detail":"Employee not found"}` and no row is inserted. If Employee Service is stopped, creation returns `503` with a clear unavailable or timeout detail and does not insert a row. Invalid/null status values and blank titles return `422`; requesting an initial `IN_PROGRESS` or `COMPLETED` status returns `400`. Unknown employee/work-item GET IDs return `404`.
+
+Example Work Item Service response (`201 Created`):
+
+```json
+{
+  "id": 1,
+  "title": "Prepare release notes",
+  "description": "Summarize this sprint",
+  "employee_id": 1,
+  "status": "TODO",
+  "priority": "MEDIUM",
+  "due_date": null,
+  "created_at": "2026-10-29T10:31:00"
+}
+```
+
+List and read saved work items without calling the Employee Service:
+
+```powershell
+Invoke-RestMethod http://localhost:8002/work-items
+Invoke-RestMethod http://localhost:8002/work-items/1
+```
+
+### Task 6 verification evidence
+
+`Screenshots/Task-6/` contains the success and error evidence from local API calls:
+
+![Task 6 employee and work item creation success](Screenshots/Task-6/success-cases.png)
+
+![Task 6 validation, missing employee, and unavailable service errors](Screenshots/Task-6/error-cases.png)
+
+Verification covered successful employee and work-item creation, duplicate email, missing-employee rejection without an insert, unavailable Employee Service rejection without an insert, reading saved work items while Employee Service was stopped, successful creation after restart, invalid status and blank-title validation, missing-record responses, and persistence after restarting both services. Both applications use separate databases and can be restarted independently. Work item persistence comes from `work_item_service_db`; employee persistence comes from `employee_service_db`. Employee existence is checked at creation time through the HTTP API, rather than through a cross-database relationship. If an employee is removed later, an already saved work item's integer `employee_id` remains as historical assignment data.
+
+The Task 6 branch is `task-6`:
+
+https://github.com/SAIPRANEETH7/employee-management-fastapi/tree/task-6
+
+## Legacy monolith features (Tasks 1–5)
+
+The following features belong to the original Task 1–5 monolith, which remains in the repository for reference.
 
 - Create, view, update, and delete employees
 - Health check endpoint
@@ -40,6 +214,7 @@ The project has been extended through five stages:
 | SQLAlchemy | ORM and database queries |
 | MySQL | Relational database |
 | PyMySQL | MySQL driver |
+| HTTPX | Work Item Service calls Employee Service |
 | Uvicorn | ASGI server |
 | python-dotenv | Environment configuration |
 | Swagger UI | API documentation/testing |
@@ -57,7 +232,18 @@ employee-management-fastapi/
 │   ├── models.py
 │   ├── schemas.py
 │   └── services.py
+├── employee_service/
+│   ├── app/
+│   ├── requirements.txt
+│   └── .env.example
+├── work_item_service/
+│   ├── app/
+│   ├── requirements.txt
+│   └── .env.example
 ├── Screenshots/
+│   └── Task-6/
+│       ├── success-cases.png
+│       └── error-cases.png
 ├── .env.example
 ├── .gitignore
 ├── requirements.txt
@@ -66,9 +252,13 @@ employee-management-fastapi/
 
 `.env` is local-only and is excluded from Git. Virtual environments and Python cache files are also excluded.
 
-## Prerequisites
+## Legacy monolith setup (Tasks 1–5)
 
-- Python 3.12
+The commands in this section run the original root `app/` application. For the current Task 6 services, use the separate setup commands in [Task 6 - Independent Employee and Work Item Services](#task-6---independent-employee-and-work-item-services).
+
+### Prerequisites
+
+- Python 3.10 or newer
 - MySQL Server
 - MySQL Workbench
 - Git
@@ -80,14 +270,14 @@ Check Python:
 python --version
 ```
 
-## Setup
+### Set up the legacy monolith
 
 ### 1. Clone the repository
 
 ```powershell
 git clone https://github.com/SAIPRANEETH7/employee-management-fastapi.git
 cd employee-management-fastapi
-git switch task-5
+git switch task-6
 ```
 
 ### 2. Create the virtual environment
@@ -167,7 +357,7 @@ The `employees` table contains:
 | `is_active` | Active status |
 | `created_at` | Creation timestamp |
 
-## API Endpoints
+## Legacy monolith API endpoints (Tasks 1–3)
 
 | Method | Endpoint | Purpose |
 |---|---|---|
@@ -459,156 +649,6 @@ GitHub repository:
 
 https://github.com/SAIPRANEETH7/employee-management-fastapi
 
-## Task 6 - Independent Employee and Work Item Services
-
-Task 6 adds two separately started FastAPI applications in `employee_service/` and `work_item_service/`. The original Task 5 application and its database configuration remain in the repository unchanged. Each new service owns its own SQLAlchemy engine, model metadata, schemas, service layer, dependency list, Swagger UI, and MySQL database. Startup creates the service's tables if they do not exist; it does not migrate or delete Task 5 data.
-
-The Work Item Service stores `employee_id` as an integer. It has no employee table, foreign key, or ORM relationship. Before it saves a new work item, it requests the employee from the Employee Service using HTTPX and a 5-second timeout. A valid employee permits the insert (`201`); an Employee Service `404` becomes `404 Employee not found`; a timeout, connection problem, or unexpected response becomes `503`. The list and get-by-ID endpoints only query the Work Item Service's database, so they work while the Employee Service is stopped.
-
-### Clone and select Task 6
-
-```powershell
-git clone https://github.com/SAIPRANEETH7/employee-management-fastapi.git
-cd employee-management-fastapi
-git switch task-6
-```
-
-### Create the two databases
-
-Start local MySQL, then run this in MySQL Workbench or the MySQL command-line client. These are new databases; leave the Task 5 `employee_management` database intact.
-
-```sql
-CREATE DATABASE employee_service_db;
-CREATE DATABASE work_item_service_db;
-```
-
-Each service creates only its own table on startup. Create a separate virtual environment and local `.env` for each service. Copy `.env.example` inside each service directory to `.env`, set the same local MySQL account with the correct database name, and do not commit `.env`.
-
-Employee Service `employee_service/.env`:
-
-```env
-EMPLOYEE_DATABASE_URL=mysql+pymysql://root:YOUR_PASSWORD@localhost:3306/employee_service_db
-```
-
-Work Item Service `work_item_service/.env`:
-
-```env
-WORK_ITEM_DATABASE_URL=mysql+pymysql://root:YOUR_PASSWORD@localhost:3306/work_item_service_db
-EMPLOYEE_SERVICE_URL=http://localhost:8001
-```
-
-URL-encode reserved characters in the database password. `.env.example` files contain placeholders only.
-
-### Install and run Employee Service
-
-In a PowerShell terminal:
-
-```powershell
-cd employee_service
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-Copy-Item .env.example .env
-# Edit .env with your MySQL credentials.
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8001
-```
-
-Employee Swagger UI: `http://localhost:8001/docs`; health check: `http://localhost:8001/health`.
-
-### Install and run Work Item Service
-
-Open a second PowerShell terminal from the repository root:
-
-```powershell
-cd work_item_service
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-Copy-Item .env.example .env
-# Edit .env with your MySQL credentials and Employee Service URL.
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8002
-```
-
-Work Item Swagger UI: `http://localhost:8002/docs`; health check: `http://localhost:8002/health`.
-
-### Example requests
-
-Create a fresh employee at `http://localhost:8001/employees`:
-
-```json
-{
-  "name": "Maya Patel",
-  "email": "maya.patel@example.com",
-  "department": "Engineering",
-  "primary_skill": "Python",
-  "location": "Bengaluru",
-  "work_mode": "WFH"
-}
-```
-
-The successful response is `201 Created` and includes its generated `id` and `created_at`. Assign a work item using that ID at `http://localhost:8002/work-items`:
-
-```json
-{
-  "title": "Prepare release notes",
-  "description": "Summarize this sprint",
-  "employee_id": 1,
-  "priority": "MEDIUM"
-}
-```
-
-Example Employee Service response (`201 Created`):
-
-```json
-{
-  "name": "Maya Patel",
-  "email": "maya.patel@example.com",
-  "department": "Engineering",
-  "primary_skill": "Python",
-  "location": "Bengaluru",
-  "work_mode": "WFH",
-  "is_active": true,
-  "id": 1,
-  "created_at": "2026-10-29T10:30:00"
-}
-```
-
-The successful response is `201 Created`, starts with `status: "TODO"`, and includes `employee_id` plus the work item's own fields. For an unknown employee, the response is `404` with `{"detail":"Employee not found"}` and no row is inserted. If Employee Service is stopped, creation returns `503` with a clear unavailable or timeout detail and does not insert a row. Invalid/null status values and blank titles return `422`; requesting an initial `IN_PROGRESS` or `COMPLETED` status returns `400`. Unknown employee/work-item GET IDs return `404`.
-
-Example Work Item Service response (`201 Created`):
-
-```json
-{
-  "id": 1,
-  "title": "Prepare release notes",
-  "description": "Summarize this sprint",
-  "employee_id": 1,
-  "status": "TODO",
-  "priority": "MEDIUM",
-  "due_date": null,
-  "created_at": "2026-10-29T10:31:00"
-}
-```
-
-List and read saved work items without calling the Employee Service:
-
-```powershell
-Invoke-RestMethod http://localhost:8002/work-items
-Invoke-RestMethod http://localhost:8002/work-items/1
-```
-
-### Task 6 verification evidence
-
-`Screenshots/Task-6/` contains the success and error evidence from local API calls:
-
-![Task 6 employee and work item creation success](Screenshots/Task-6/success-cases.png)
-
-![Task 6 validation, missing employee, and unavailable service errors](Screenshots/Task-6/error-cases.png)
-
-Both applications use separate databases and can be restarted independently. Work item persistence comes from `work_item_service_db`; employee persistence comes from `employee_service_db`. Employee existence is checked at creation time through the HTTP API, rather than through a cross-database relationship. If an employee is removed later, an already saved work item's integer `employee_id` remains as historical assignment data.
-
-The Task 6 branch is `task-6`:
-
-https://github.com/SAIPRANEETH7/employee-management-fastapi/tree/task-6
-
 ## Task 4 - Work Items and Employee Relationship
 
 Task 4 adds persistent work items assigned to existing employees. The `work_items.employee_id` column is a foreign key to `employees.id`, and the SQLAlchemy `Employee.work_items` / `WorkItem.assigned_employee` relationships expose the connection in both directions. An employee must exist before a work item can be created or reassigned. Work-item list filtering, counting, ordering, and pagination are performed in SQLAlchemy queries.
@@ -821,16 +861,17 @@ The employee summary counts only work items currently assigned to that employee.
 
 ### Task 5 verification and screenshots
 
-Task 5 automated service checks cover allowed and rejected transitions, repeated status, invalid creation and PATCH payloads, PUT status preservation, atomic rejection, missing records, summary changes after status updates, reassignment, and deletion. Existing `Screenshots/` contains successful status-change captures from the Swagger UI. API-level restart persistence and new Task 5 error screenshots still require a live MySQL/Swagger capture pass.
+Task 5 automated service checks cover allowed and rejected transitions, repeated status, invalid creation and PATCH payloads, PUT status preservation, atomic rejection, missing records, summary changes after status updates, reassignment, and deletion. `Screenshots/` includes Task 5 status, validation, and missing-record evidence. API-level persistence was also checked against the existing `employee_management` database: the work-item list returned 36 records before and after restarting the Task 5 application.
 
 ## Version
 
 ```text
-Task 5
-Employee Management API
-Version 5.0.0
+Current task: Task 6
+Employee Service: Version 1.0.0
+Work Item Service: Version 1.0.0
+Legacy monolith: Version 5.0.0
 ```
 
 ## Summary
 
-Task 5 extends the employee and work-item API with ordered status transitions, all-or-nothing status validation on updates, and a SQLAlchemy-backed per-employee work summary. Existing employee CRUD and work-item endpoints remain available.
+Task 6 is the current submission. Employee Service and Work Item Service run independently on ports 8001 and 8002, use separate databases, and communicate through an HTTPX employee lookup before a work item is saved. The original Task 1–5 monolith and its historical documentation remain in the repository.
