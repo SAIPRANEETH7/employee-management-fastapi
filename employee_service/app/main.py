@@ -13,16 +13,6 @@ def startup() -> None:
     create_tables()
 
 
-@app.post("/employees", response_model=EmployeeResponse, status_code=status.HTTP_201_CREATED)
-def post_employee(data: EmployeeCreate, db: Session = Depends(get_db)):
-    try:
-        return create_employee(db, data)
-    except ValueError as error:
-        raise HTTPException(status_code=400, detail=str(error)) from error
-    except RuntimeError as error:
-        raise HTTPException(status_code=500, detail=str(error)) from error
-
-
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "employee"}
@@ -47,3 +37,11 @@ def get_employee_by_id(employee_id: int, db: Session = Depends(get_db)):
     if employee is None:
         raise HTTPException(status_code=404, detail="Employee not found")
     return employee
+@app.post("/employees", response_model=EmployeeResponse, status_code=status.HTTP_201_CREATED)
+def post_employee(data: EmployeeCreate, db: Session = Depends(get_db)):
+    try:
+        return create_employee(db, data)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except RuntimeError as error:
+        raise HTTPException(status_code=500, detail=str(error)) from error
