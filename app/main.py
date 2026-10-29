@@ -276,8 +276,6 @@ def update_existing_work_item_status(
     if item is None:
         raise HTTPException(status_code=404, detail=f"Work item {work_item_id} not found.")
     return item
-
-
 @app.post(
     "/employees",
     response_model=Employee,

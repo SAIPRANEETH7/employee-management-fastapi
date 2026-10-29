@@ -24,6 +24,25 @@ def health():
     return {"status": "ok", "service": "work-item"}
 
 
+@app.get("/work-items", response_model=list[WorkItemResponse])
+def get_work_items(db: Session = Depends(get_db)):
+    try:
+        return list_work_items(db)
+    except RuntimeError as error:
+        raise HTTPException(status_code=500, detail=str(error)) from error
+
+
+@app.get("/work-items/{work_item_id}", response_model=WorkItemResponse)
+def get_work_item_by_id(work_item_id: int, db: Session = Depends(get_db)):
+    if work_item_id <= 0:
+        raise HTTPException(status_code=400, detail="Work item ID must be greater than zero.")
+    try:
+        item = get_work_item(db, work_item_id)
+    except RuntimeError as error:
+        raise HTTPException(status_code=500, detail=str(error)) from error
+    if item is None:
+        raise HTTPException(status_code=404, detail="Work item not found")
+    return item
 @app.post("/work-items", response_model=WorkItemResponse, status_code=status.HTTP_201_CREATED)
 def post_work_item(data: WorkItemCreate, db: Session = Depends(get_db)):
     if data.status != "TODO":
@@ -60,24 +79,3 @@ def post_work_item(data: WorkItemCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=str(error)) from error
     except RuntimeError as error:
         raise HTTPException(status_code=500, detail=str(error)) from error
-
-
-@app.get("/work-items", response_model=list[WorkItemResponse])
-def get_work_items(db: Session = Depends(get_db)):
-    try:
-        return list_work_items(db)
-    except RuntimeError as error:
-        raise HTTPException(status_code=500, detail=str(error)) from error
-
-
-@app.get("/work-items/{work_item_id}", response_model=WorkItemResponse)
-def get_work_item_by_id(work_item_id: int, db: Session = Depends(get_db)):
-    if work_item_id <= 0:
-        raise HTTPException(status_code=400, detail="Work item ID must be greater than zero.")
-    try:
-        item = get_work_item(db, work_item_id)
-    except RuntimeError as error:
-        raise HTTPException(status_code=500, detail=str(error)) from error
-    if item is None:
-        raise HTTPException(status_code=404, detail="Work item not found")
-    return item
