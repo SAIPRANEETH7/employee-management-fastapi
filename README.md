@@ -24,10 +24,10 @@ The Work Item Service stores `employee_id` as an integer. It has no employee tab
 | Service | Method | Endpoint | Purpose |
 |---|---|---|---|
 | Employee Service (`8001`) | POST | `/employees` | Create an employee |
+| Work Item Service (`8002`) | POST | `/work-items` | Check employee then create a work item |
 | Employee Service (`8001`) | GET | `/employees` | List employees |
 | Employee Service (`8001`) | GET | `/employees/{employee_id}` | Get one employee |
 | Employee Service (`8001`) | GET | `/health` | Health check |
-| Work Item Service (`8002`) | POST | `/work-items` | Check employee then create a work item |
 | Work Item Service (`8002`) | GET | `/work-items` | List work items |
 | Work Item Service (`8002`) | GET | `/work-items/{work_item_id}` | Get one work item |
 | Work Item Service (`8002`) | GET | `/health` | Health check |
@@ -361,12 +361,12 @@ The `employees` table contains:
 
 | Method | Endpoint | Purpose |
 |---|---|---|
-| GET | `/health` | Health check |
 | POST | `/employees` | Create employee |
+| DELETE | `/employees/{employee_id}` | Delete employee |
+| GET | `/health` | Health check |
 | GET | `/employees` | Search, filter, and paginate employees |
 | GET | `/employees/{employee_id}` | Get one employee |
 | PUT | `/employees/{employee_id}` | Update employee |
-| DELETE | `/employees/{employee_id}` | Delete employee |
 
 ## Task 3 - Search, Filtering and Pagination
 
@@ -672,13 +672,13 @@ Task 4 adds persistent work items assigned to existing employees. The `work_item
 
 | Method | Endpoint | Success |
 |---|---|---|
-| GET | `/employees/{employee_id}/work-summary` | `200 OK`, counts by work-item status |
 | POST | `/work-items` | `201 Created` |
+| DELETE | `/work-items/{work_item_id}` | `200 OK`, success message |
+| GET | `/employees/{employee_id}/work-summary` | `200 OK`, counts by work-item status |
 | GET | `/work-items` | `200 OK`, paginated list |
 | GET | `/work-items/{work_item_id}` | `200 OK` |
 | PATCH | `/work-items/{work_item_id}/status` | `200 OK`; updates status through the allowed transitions |
 | PUT | `/work-items/{work_item_id}` | `200 OK`; accepts fields to change and applies the same status-transition rules |
-| DELETE | `/work-items/{work_item_id}` | `200 OK`, success message |
 
 Every item response includes its assigned employee's `id`, `name`, and `email` in `assigned_employee`.
 

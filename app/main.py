@@ -35,6 +35,89 @@ def startup():
     create_tables()
 
 
+@app.post(
+    "/employees",
+    response_model=Employee,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_new_employee(
+    employee_data: EmployeeCreate,
+    db: Session = Depends(get_db),
+):
+    try:
+        return create_employee(db, employee_data)
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        )
+
+    except RuntimeError as error:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(error),
+        )
+
+
+@app.post("/work-items", response_model=WorkItemResponse, status_code=status.HTTP_201_CREATED)
+def create_new_work_item(data: WorkItemCreate, db: Session = Depends(get_db)):
+    try:
+        return create_work_item(db, data)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+    except LookupError as error:
+        raise HTTPException(status_code=404, detail=str(error))
+    except RuntimeError as error:
+        raise HTTPException(status_code=500, detail=str(error))
+
+
+@app.delete("/employees/{employee_id}")
+def delete_existing_employee(
+    employee_id: int,
+    db: Session = Depends(get_db),
+):
+    if employee_id <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Employee ID must be greater than zero.",
+        )
+
+    try:
+        deleted = delete_employee(db, employee_id)
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        )
+
+    except RuntimeError as error:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(error),
+        )
+
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Employee {employee_id} not found.",
+        )
+
+    return {"message": f"Employee Id {employee_id} deleted successfully."}
+
+
+@app.delete("/work-items/{work_item_id}")
+def delete_existing_work_item(work_item_id: int, db: Session = Depends(get_db)):
+    if work_item_id <= 0:
+        raise HTTPException(status_code=422, detail="Work item ID must be positive.")
+    try:
+        deleted = delete_work_item(db, work_item_id)
+    except RuntimeError as error:
+        raise HTTPException(status_code=500, detail=str(error))
+    if not deleted:
+        raise HTTPException(status_code=404, detail=f"Work item {work_item_id} not found.")
+    return {"message": f"Work item {work_item_id} deleted successfully."}
 @app.get("/health")
 def health_check():
     return {"status": "Application is Running Successfully."}
@@ -276,88 +359,3 @@ def update_existing_work_item_status(
     if item is None:
         raise HTTPException(status_code=404, detail=f"Work item {work_item_id} not found.")
     return item
-
-
-@app.post(
-    "/employees",
-    response_model=Employee,
-    status_code=status.HTTP_201_CREATED,
-)
-def create_new_employee(
-    employee_data: EmployeeCreate,
-    db: Session = Depends(get_db),
-):
-    try:
-        return create_employee(db, employee_data)
-
-    except ValueError as error:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(error),
-        )
-
-    except RuntimeError as error:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(error),
-        )
-
-
-@app.post("/work-items", response_model=WorkItemResponse, status_code=status.HTTP_201_CREATED)
-def create_new_work_item(data: WorkItemCreate, db: Session = Depends(get_db)):
-    try:
-        return create_work_item(db, data)
-    except ValueError as error:
-        raise HTTPException(status_code=400, detail=str(error))
-    except LookupError as error:
-        raise HTTPException(status_code=404, detail=str(error))
-    except RuntimeError as error:
-        raise HTTPException(status_code=500, detail=str(error))
-
-
-@app.delete("/employees/{employee_id}")
-def delete_existing_employee(
-    employee_id: int,
-    db: Session = Depends(get_db),
-):
-    if employee_id <= 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Employee ID must be greater than zero.",
-        )
-
-    try:
-        deleted = delete_employee(db, employee_id)
-
-    except ValueError as error:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(error),
-        )
-
-    except RuntimeError as error:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(error),
-        )
-
-    if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Employee {employee_id} not found.",
-        )
-
-    return {"message": f"Employee Id {employee_id} deleted successfully."}
-
-
-@app.delete("/work-items/{work_item_id}")
-def delete_existing_work_item(work_item_id: int, db: Session = Depends(get_db)):
-    if work_item_id <= 0:
-        raise HTTPException(status_code=422, detail="Work item ID must be positive.")
-    try:
-        deleted = delete_work_item(db, work_item_id)
-    except RuntimeError as error:
-        raise HTTPException(status_code=500, detail=str(error))
-    if not deleted:
-        raise HTTPException(status_code=404, detail=f"Work item {work_item_id} not found.")
-    return {"message": f"Work item {work_item_id} deleted successfully."}

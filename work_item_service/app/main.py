@@ -19,11 +19,6 @@ def startup() -> None:
     create_tables()
 
 
-@app.get("/health")
-def health():
-    return {"status": "ok", "service": "work-item"}
-
-
 @app.post("/work-items", response_model=WorkItemResponse, status_code=status.HTTP_201_CREATED)
 def post_work_item(data: WorkItemCreate, db: Session = Depends(get_db)):
     if data.status != "TODO":
@@ -60,6 +55,11 @@ def post_work_item(data: WorkItemCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=str(error)) from error
     except RuntimeError as error:
         raise HTTPException(status_code=500, detail=str(error)) from error
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "service": "work-item"}
 
 
 @app.get("/work-items", response_model=list[WorkItemResponse])
